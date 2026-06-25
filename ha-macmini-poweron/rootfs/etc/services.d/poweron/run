@@ -1,0 +1,15 @@
+#!/command/with-contenv sh
+#
+# poweron run script — s6-overlay entrypoint.
+# Executes the Go binary and logs start/completion.
+#
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] [poweron] [addon] starting..." >&1
+
+/usr/bin/poweron
+
+EXIT_CODE=$?
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] [poweron] [addon] exited with code ${EXIT_CODE}" >&1
+
+exit ${EXIT_CODE}

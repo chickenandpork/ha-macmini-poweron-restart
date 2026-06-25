@@ -1,17 +1,25 @@
+# Home Assistant App configuration
 # https://developers.home-assistant.io/docs/apps/configuration#app-configuration
-name: HA Mac Mini PowerOn Restart
+
+name: HA MacMini PowerOn Restart
 version: "0.0.11"
 slug: ha-macmini-poweron
-description: Allow your MacMini-based HAOS to restart on return of power
+description: >-
+  Allow your MacMini-based HAOS to restart on return of power.
+  Configures the Mac Mini PCI power controller (ICH7-M / MCP89 PMC)
+  to auto-power-on after a power failure.
 url: "https://github.com/chickenandpork/ha-macmini-poweron-restart/tree/main/ha-macmini-poweron"
 arch:
   - aarch64
   - amd64
 init: false
+startup: "startup"
+boot: "auto"
+privileged:
+  - SYS_RAWIO
+devices:
+  - /dev/pci
 map:
   - share:rw
-options:
-  message: "Hello world..."
-schema:
-  message: "str?"
-#image: "ghcr.io/chickenandpork/ha-macmini-poweron-restart"
+options: {}
+schema: {}

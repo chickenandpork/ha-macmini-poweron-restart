@@ -1,32 +1,48 @@
-# https://developers.home-assistant.io/docs/apps/configuration#app-dockerfile
-ARG BUILD_FROM=ghcr.io/home-assistant/base:3.23
-FROM ${BUILD_FROM}
+# Home Assistant App: HA Mac Mini Power On Restart
+#
+# Build:
+#   docker buildx build --platform linux/amd64,linux/arm64 -t <image>:<tag> .
+#
+# This addon uses a static Go binary built from scratch — no Alpine,
+# no bash, no pciutils. The binary talks directly to sysfs PCI.
+#
+# Multi-stage:
+#   go-builder   — Go compilation (scratch, fully static binary)
+#   production    — HA base image with the binary + s6-overlay services
 
-# Execute during the build of the image
-ARG TEMPIO_VERSION=2021.09.0
+ARG BUILD_FROM=ghcr.io/home-assistant/base:3.23
+FROM ${BUILD_FROM} AS builder
+
+# BuildKit sets TARGETARCH automatically from --platform.
 ARG TARGETARCH
 
-RUN apk update && apk add curl ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Copy Go source into the build stage.
+COPY rootfs/usr/bin/go.mod /build/go.mod
+COPY rootfs/usr/bin/main.go /build/main.go
 
-RUN \
-    --mount=type=cache,target=/var/cache/apk,sharing=locked \
-    apk add --update-cache curl ca-certificates pciutils usbutils
+# Compile: fully static, stripped, trimpath for reproducible builds.
+FROM scratch AS go-builder
+ARG TARGETARCH
+COPY --from=builder /usr/local/go /usr/local/go
+WORKDIR /build
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=${TARGETARCH} \
+    GOPATH=/go \
+    GOCACHE=/tmp/go-cache
+RUN go mod download && \
+    go build -trimpath -ldflags '-s -w -extldflags "-static"' \
+      -o /usr/bin/poweron main.go
 
-RUN \
-    if [ -z "${TARGETARCH}" ]; then \
-        echo "TARGETARCH is not set, please use Docker BuildKit for the build." && exit 1; \
-    fi \
-    && case "${TARGETARCH}" in \
-        amd64) tempio_arch="amd64" ;; \
-        arm64) tempio_arch="aarch64" ;; \
-        *) echo "Unsupported TARGETARCH: ${TARGETARCH}" && exit 1 ;; \
-    esac \
-    && curl -sSLf -o /usr/bin/tempio \
-        "https://github.com/home-assistant/tempio/releases/download/${TEMPIO_VERSION}/tempio_${tempio_arch}"
+# === Production stage ===
+FROM ${BUILD_FROM}
 
-# Copy root filesystem
-COPY rootfs /
+# Copy the Go binary and s6-overlay service scripts.
+COPY --from=go-builder /usr/bin/poweron  /usr/bin/poweron
+COPY rootfs/ /
+
+# Ensure executable.
+RUN chmod +x /usr/bin/poweron
 
 LABEL \
     org.opencontainers.image.title="Home Assistant App: HA Mac Mini Power On Restart" \

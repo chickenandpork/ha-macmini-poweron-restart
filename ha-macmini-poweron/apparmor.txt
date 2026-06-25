@@ -20,15 +20,8 @@ profile example flags=(attach_disconnected,mediate_deleted,complain) {
   /run/{,**} rwk,
   /dev/tty rw,
 
-  # Bashio
-  /usr/lib/bashio/** ix,
-  /tmp/** rwk,
-
-  # Access to options.json and other files within your app
-  /data/** rw,
-
-  # Start new profile for service
-  /usr/bin/poweron.sh cx -> my_program,
+  # Start new profile for poweron service
+  /usr/bin/poweron cx -> my_program,
 
   profile my_program flags=(attach_disconnected,mediate_deleted) {
     #include <abstractions/base>
@@ -36,22 +29,13 @@ profile example flags=(attach_disconnected,mediate_deleted,complain) {
     # Receive signals from S6-Overlay
     signal (receive) peer=*_example,
 
-    # Access to options.json and other files within your app
-    /data/** rw,
-
-    # Access to mapped volumes specified in config.json
+    # Access to mapped volumes
     /share/** rw,
 
-    # Access required for service functionality
-    # Note: List was built by doing the following:
-    # 1. Add what is obviously needed based on what is in the script
-    # 2. Add `complain` as a flag to this profile temporarily and run the app
-    # 3. Review the audit log with `journalctl _TRANSPORT="audit" -g 'apparmor="ALLOWED"'` and add other access as needed
-    # Remember to remove the `complain` flag when you are done
-    /usr/bin/poweron.sh r,
-    /bin/bash rix,
-    /bin/echo ix,
-    /etc/passwd r,
-    /dev/tty rw,
+    # Read sysfs PCI enumeration and config space
+    /sys/bus/pci/devices/** r,
+
+    # The poweron binary itself
+    /usr/bin/poweron r,
   }
 }

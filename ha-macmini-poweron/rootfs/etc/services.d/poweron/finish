@@ -1,0 +1,6 @@
+#!/command/with-contenv sh
+#
+# poweron finish script — cleanup when the service exits.
+#
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] [poweron] [addon] finishing..." >&1
